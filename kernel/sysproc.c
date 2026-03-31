@@ -5,6 +5,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "sysinfo.h"
 
 uint64
 sys_exit(void)
@@ -94,13 +95,29 @@ sys_uptime(void)
 
 uint64 
 sys_trace(void) {
-    int mask;
-    argint(0, &mask);
-    
-    struct proc *p = myproc();
-    
-    // This mask will be inherited by child processes when they fork
-    p->trace_mask = mask;
-    
-    return 0;
+  int mask;
+  argint(0, &mask);
+  
+  struct proc *p = myproc();
+  
+  // This mask will be inherited by child processes when they fork
+  p->trace_mask = mask;
+  return 0;
+}
+
+sys_sysinfo(void) {
+  uint64 addr;
+  
+  argaddr(0, &addr);
+  
+  struct sysinfo info;
+  
+  info.freemem = freemem();      
+  info.nproc = proccount();      
+  info.nopenfiles = filecount(); 
+  
+  if (copyout(myproc()->pagetable, addr, (char *)&info, sizeof(info)) < 0)
+      return -1;
+  
+  return 0;
 }

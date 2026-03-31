@@ -1,8 +1,44 @@
 #include "kernel/types.h"
+#include "kernel/stat.h"
 #include "kernel/riscv.h"
 #include "kernel/sysinfo.h"
 #include "user/user.h"
 
+void
+testfiles() {
+  struct sysinfo info;
+  int fd;
+
+  sysinfo(&info);
+  int before = info.nopenfiles;
+
+  printf("[testfiles] before = %d\n", before);
+
+  // open a file
+  fd = open("README", 0);
+  if(fd < 0){
+    printf("FAIL: open failed\n");
+    exit(1);
+  }
+
+  sysinfo(&info);
+  printf("[testfiles] after open = %ld\n", info.nopenfiles);
+
+  if(info.nopenfiles != before + 1){
+    printf("FAIL: nopenfiles did not increase\n");
+    exit(1);
+  }
+
+  close(fd);
+
+  sysinfo(&info);
+  printf("[testfiles] after close = %ld\n", info.nopenfiles);
+
+  if(info.nopenfiles != before){
+    printf("FAIL: nopenfiles did not decrease\n");
+    exit(1);
+  }
+}
 
 void
 sinfo(struct sysinfo *info) {
@@ -44,23 +80,29 @@ testmem() {
   uint64 n = countfree();
   
   sinfo(&info);
+  printf("[testmem] freemem = %ld (expected %ld)\n", info.freemem, n);
 
   if (info.freemem!= n) {
     printf("FAIL: free mem %ld (bytes) instead of %ld\n", info.freemem, n);
     exit(1);
   }
   
+  printf("[testmem] allocating one page...\n");
+
   if((uint64)sbrk(PGSIZE) == 0xffffffffffffffff){
     printf("sbrk failed");
     exit(1);
   }
 
   sinfo(&info);
-    
+  printf("[testmem] after alloc = %ld (expected %ld)\n", info.freemem, n - PGSIZE);
+
   if (info.freemem != n-PGSIZE) {
     printf("FAIL: free mem %ld (bytes) instead of %ld\n", n-PGSIZE, info.freemem);
     exit(1);
   }
+
+  printf("[testmem] freeing one page...\n");
   
   if((uint64)sbrk(-PGSIZE) == 0xffffffffffffffff){
     printf("sbrk failed");
@@ -68,6 +110,7 @@ testmem() {
   }
 
   sinfo(&info);
+  printf("[testmem] after free = %ld (expected %ld)\n", info.freemem, n);
     
   if (info.freemem != n) {
     printf("FAIL: free mem %ld (bytes) instead of %ld\n", n, info.freemem);
@@ -99,6 +142,8 @@ void testproc() {
   sinfo(&info);
   nproc = info.nproc;
 
+  printf("[testproc] initial nproc = %ld\n", nproc);
+
   pid = fork();
   if(pid < 0){
     printf("sysinfotest: fork failed\n");
@@ -114,6 +159,8 @@ void testproc() {
   }
   wait(&status);
   sinfo(&info);
+  printf("[testproc-parent] nproc = %ld (expected %ld)\n", info.nproc, nproc);
+
   if(info.nproc != nproc) {
       printf("sysinfotest: FAIL nproc is %ld instead of %ld\n", info.nproc, nproc);
       exit(1);
@@ -144,10 +191,32 @@ void testbad() {
 int
 main(int argc, char *argv[])
 {
-  printf("sysinfotest: start\n");
+  struct sysinfo info;
+
+  printf("===== sysinfotest: start =====\n");
+
+  printf("\n[Running testcall...]\n");
   testcall();
+
+  printf("\n[Running testmem...]\n");
   testmem();
+
+  printf("\n[Running testproc...]\n");
   testproc();
-  printf("sysinfotest: OK\n");
+
+  printf("\n[Running testfiles...]\n");
+  testfiles();
+
+  if (sysinfo(&info) < 0) {
+    printf("FAIL: sysinfo failed at end\n");
+    exit(1);
+  }
+  printf("\n[Final]\n");
+  printf("Free memory: %ld\n", info.freemem);
+  printf("Number of processes: %ld\n", info.nproc);
+  printf("Number of open files: %ld\n", info.nopenfiles);
+
+  printf("\n===== sysinfotest: OK =====\n");
+
   exit(0);
 }

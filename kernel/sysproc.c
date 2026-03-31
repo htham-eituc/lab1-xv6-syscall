@@ -91,3 +91,17 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_trace(void) {
+  int mask;
+
+  argint(0, &mask);
+  
+  // myproc() returns a pointer to the current process's proc structure
+  struct proc *p = myproc();
+  
+  // This mask will be inherited by child processes when they fork
+  p->trace_mask = mask;
+  return 0;
+}

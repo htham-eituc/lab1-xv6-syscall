@@ -105,7 +105,7 @@ sys_trace(void) {
   return 0;
 }
 
-sys_sysinfo(void) {
+uint64 sys_sysinfo(void) {
   uint64 addr;
   
   argaddr(0, &addr);

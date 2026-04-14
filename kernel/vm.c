@@ -502,3 +502,29 @@ pgpte(pagetable_t pagetable, uint64 va) {
   return walk(pagetable, va, 0);
 }
 #endif
+
+static void
+vmprint_rec(pagetable_t ptable, int level) {
+  for (int i = 0; i < 512; i++) {
+    pte_t pte = ptable[i];
+    if (pte & PTE_V) {
+     // In prefix ".." theo độ sâu
+      for (int j = 0; j < (3 - level); j++) { // 3 là số lượng level tối đa [Theo C3 ref đính kèm]
+        printf(" ..");
+      }
+      printf("%d: pte %p pa %p\n", i, (void*)pte, (void*)PTE2PA(pte)); // In theo format được required
+
+      // Nếu đây là một page table (không phải leaf - Không có R/W/X bit), đệ quy vào page table đó
+      if ((pte & (PTE_R | PTE_W | PTE_X)) == 0) {
+        uint64 child = PTE2PA(pte);
+        vmprint_rec((pagetable_t)child, level - 1);
+      }
+    }
+  }
+}
+
+void 
+vmprint(pagetable_t ptable) {
+  printf("page table %p\n", ptable);
+  vmprint_rec(ptable, 2); // Bắt đầu đệ quy với level cao nhất là 2
+}

@@ -101,6 +101,46 @@ sys_kpgtbl(void)
 }
 #endif
 
+uint64
+sys_pgaccess(void){
+  uint64 va; // virtual access
+  int npages;
+  uint64 uaddr; // user-space address
+
+  argaddr(0, &va);
+
+  argint(1, &npages);
+  
+  argaddr(2, &uaddr);
+
+  #define MAX_PGACCESS_PAGES 64
+
+  if (npages< 0 || npages > MAX_PGACCESS_PAGES)
+    return -1;
+
+  uint64 bitmask = 0;
+
+  struct proc *p = myproc();
+
+  for (int i = 0; i < npages; i++) {
+    uint64 page_va = va + (uint64)i * PGSIZE;
+
+    pte_t *pte = walk(p->pagetable, page_va, 0);
+
+    if(pte == 0)
+      continue;
+    
+    if(*pte & PTE_A){
+      bitmask |= (1L << i);
+      *pte &= ~PTE_A;
+    }
+  }  
+
+  if (copyout(p->pagetable, uaddr, (char *)&bitmask, sizeof(bitmask)) < 0)
+    return -1;
+  
+  return 0;
+}
 
 uint64
 sys_kill(void)

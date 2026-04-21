@@ -493,13 +493,11 @@ vmprint_rec(pagetable_t pagetable, int level) {
   for (int i = 0; i < 512; i++) {
     pte_t pte = pagetable[i];
     if (pte & PTE_V) {
-     // In prefix ".." theo độ sâu
-      for (int j = 0; j < (3 - level); j++) { // 3 là số lượng level tối đa [Theo C3 ref đính kèm]
+      for (int j = 0; j < (3 - level); j++) { 
         printf(" ..");
       }
-      printf("%d: pte %p pa %p\n", i, (void*)pte, (void*)PTE2PA(pte)); // In theo format được required
+      printf("%d: pte %p pa %p\n", i, (void*)pte, (void*)PTE2PA(pte)); 
 
-      // Nếu đây là một page table (không phải leaf - Không có R/W/X bit), đệ quy vào page table đó
       if ((pte & (PTE_R | PTE_W | PTE_X)) == 0) {
         uint64 child = PTE2PA(pte);
         vmprint_rec((pagetable_t)child, level - 1);

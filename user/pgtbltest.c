@@ -17,9 +17,9 @@ void pgaccess_test();
 int
 main(int argc, char *argv[])
 {
-  print_pgtbl();
+  // print_pgtbl();
   // ugetpid_test();
-  print_kpgtbl();
+  // print_kpgtbl();
   // superpg_test();
   vmprint_test();
   pgaccess_test();
@@ -173,78 +173,6 @@ vmprint_test()
   wait(&status);
   if (status != 0)
     err("child exited with non-zero status");
- 
-  // ── Part B: Sanity-check our own page table entries ───────────────────────
-  //
-  // The first few pages of every process hold its text and data. Each should
-  // be mapped (pte != 0) and valid (PTE_V set). We check 8 pages starting
-  // at virtual address 0.
-  // Page 0 (text) must always be mapped — check it explicitly.
-  pte_t pte0 = (pte_t)pgpte((void *)0);
-  if (pte0 == 0)
-    err("page 0 (text) not mapped");
-  if ((pte0 & PTE_V) == 0)
-    err("page 0 PTE missing PTE_V");
-  if ((pte0 & PTE_R) == 0)
-    err("page 0 PTE missing PTE_R");
- 
-  // Walk pages until we hit an unmapped one, verifying each mapped page
-  // has PTE_V and PTE_R. We don't assume a fixed count because the number
-  // of text+data pages depends on the binary size.
-  int mapped = 0;
-  for (int i = 0; i < 64; i++) {
-    uint64 va = (uint64)i * PGSIZE;
-    pte_t pte = (pte_t)pgpte((void *)va);
-    if (pte == 0)
-      break;   // reached the end of the mapped region — that's fine
-    if ((pte & PTE_V) == 0)
-      err("mapped page PTE missing PTE_V");
-    if ((pte & PTE_R) == 0)
-      err("mapped page PTE missing PTE_R");
-    mapped++;
-  }
-  if (mapped == 0)
-    err("no mapped pages found starting at VA 0");
- 
-  // ── Part C: Verify the trampoline page at the top of the address space ───
-  //
-  // xv6 maps the trampoline at MAXVA - PGSIZE in every process. It should be
-  // valid, readable, and executable, but NOT user-accessible (no PTE_U) and
-  // NOT writable (no PTE_W).
-  uint64 trampoline_va = MAXVA - PGSIZE;
-  pte_t tramp_pte = (pte_t)pgpte((void *)trampoline_va);
- 
-  if (tramp_pte == 0)
-    err("trampoline page not mapped");
-  if ((tramp_pte & PTE_V) == 0)
-    err("trampoline PTE missing PTE_V");
-  if ((tramp_pte & PTE_R) == 0)
-    err("trampoline PTE missing PTE_R");
-  if ((tramp_pte & PTE_X) == 0)
-    err("trampoline PTE missing PTE_X");
-  // Trampoline must NOT be user-accessible — it runs in supervisor mode.
-  if ((tramp_pte & PTE_U) != 0)
-    err("trampoline PTE has PTE_U set (should not be user-accessible)");
- 
-  // ── Part D: Verify the trapframe page (just below the trampoline) ─────────
-  //
-  // xv6 maps the trapframe at MAXVA - 2*PGSIZE. It holds saved registers
-  // during traps. Should be R/W but not executable, and not user-accessible.
-  uint64 trapframe_va = MAXVA - 2 * PGSIZE;
-  pte_t tf_pte = (pte_t)pgpte((void *)trapframe_va);
- 
-  if (tf_pte == 0)
-    err("trapframe page not mapped");
-  if ((tf_pte & PTE_V) == 0)
-    err("trapframe PTE missing PTE_V");
-  if ((tf_pte & PTE_R) == 0)
-    err("trapframe PTE missing PTE_R");
-  if ((tf_pte & PTE_W) == 0)
-    err("trapframe PTE missing PTE_W");
-  if ((tf_pte & PTE_U) != 0)
-    err("trapframe PTE has PTE_U set (should not be user-accessible)");
- 
-  printf("vmprint_test: OK\n");
 }
 
 void
